@@ -1,0 +1,34 @@
+# Composición de servicios para desarrollo y evaluación local.
+# Levanta la infraestructura (PostgreSQL) y los dos microservicios.
+# Los servicios de aplicación se irán completando conforme avance el desarrollo.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mariposa-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-biblioteca}
+      POSTGRES_USER: ${POSTGRES_USER:-biblioteca_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambiar_en_local}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_datos:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U ${POSTGRES_USER:-biblioteca_app} -d ${POSTGRES_DB:-biblioteca}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mariposa-red
+
+networks:
+  mariposa-red:
+    driver: bridge
+
+volumes:
+  postgres_datos:
+    name: mariposa-postgres-datos

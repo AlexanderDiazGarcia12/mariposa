@@ -1,24 +1,105 @@
-# Compiled class file
+# =========================
+# Java / Maven
+# =========================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 *.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
-*.nar
 *.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+*.nar
 hs_err_pid*
 replay_pid*
+
+# =========================
+# Spring Boot
+# =========================
+HELP.md
+.mvn/wrapper/maven-wrapper.properties
+spring-boot-*.log
+application-local.yml
+application-local.properties
+
+# =========================
+# Go
+# =========================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+vendor/
+bin/
+dist/
+
+# =========================
+# IDEs
+# =========================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+!.vscode/settings.json.example
+.project
+.classpath
+.settings/
+.factorypath
+.apt_generated/
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# =========================
+# Docker
+# =========================
+.docker/
+docker-compose.override.yml
+
+# =========================
+# Secretos y configuraciones locales
+# =========================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+
+# =========================
+# Sistema operativo
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# Logs y temporales
+# =========================
+logs/
+*.log
+*.log.*
+tmp/
+temp/
+.cache/
+
+# =========================
+# Cobertura y reportes de pruebas
+# =========================
+coverage/
+*.lcov
+jacoco.exec
+surefire-reports/
+failsafe-reports/
