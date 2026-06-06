@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: servicio-biblioteca
+  profiles:
+    active: ${SERVICIO_BIBLIOTECA_PERFIL:local}
+
+server:
+  port: ${SERVICIO_BIBLIOTECA_PUERTO:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+  health:
+    db:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    descripcion: Microservicio de gestión de catálogo y autenticación de la biblioteca
