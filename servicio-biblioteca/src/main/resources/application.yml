@@ -3,6 +3,11 @@ spring:
     name: servicio-biblioteca
   profiles:
     active: ${SERVICIO_BIBLIOTECA_PERFIL:local}
+  jpa:
+    properties:
+      hibernate:
+        timezone:
+          default_storage: NORMALIZE_UTC
 
 server:
   port: ${SERVICIO_BIBLIOTECA_PUERTO:8080}
