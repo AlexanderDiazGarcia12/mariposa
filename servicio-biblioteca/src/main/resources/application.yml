@@ -38,3 +38,17 @@ seguridad:
     duracion-acceso-minutos: ${JWT_DURACION_ACCESO_MINUTOS:15}
     duracion-refresco-dias: ${JWT_DURACION_REFRESCO_DIAS:7}
     emisor: ${JWT_EMISOR:mariposa-biblioteca}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    try-it-out-enabled: true
+    persist-authorization: true
+  show-actuator: false
+  packages-to-scan: com.mariposa.biblioteca.infraestructura.web.controladores
