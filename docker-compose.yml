@@ -1,6 +1,5 @@
 # Composición de servicios para desarrollo y evaluación local.
-# Levanta la infraestructura (PostgreSQL) y los dos microservicios.
-# Los servicios de aplicación se irán completando conforme avance el desarrollo.
+# Levanta la infraestructura (PostgreSQL) y los microservicios de aplicación.
 
 services:
   postgres:
@@ -24,6 +23,39 @@ services:
       start_period: 10s
     networks:
       - mariposa-red
+
+  servicio-biblioteca:
+    build:
+      context: ./servicio-biblioteca
+      dockerfile: Dockerfile
+    container_name: mariposa-servicio-biblioteca
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SERVICIO_BIBLIOTECA_PERFIL: docker
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-biblioteca}
+      POSTGRES_USER: ${POSTGRES_USER:-biblioteca_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambiar_en_local}
+      JWT_CLAVE_SECRETA: ${JWT_CLAVE_SECRETA:-clave-de-prueba-de-minimo-32-bytes-para-HS256-mariposa}
+      JWT_DURACION_ACCESO_MINUTOS: ${JWT_DURACION_ACCESO_MINUTOS:-15}
+      JWT_DURACION_REFRESCO_DIAS: ${JWT_DURACION_REFRESCO_DIAS:-7}
+      JWT_EMISOR: ${JWT_EMISOR:-mariposa-biblioteca}
+      NIVEL_LOG_ROOT: ${NIVEL_LOG_ROOT:-INFO}
+      NIVEL_LOG_APLICACION: ${NIVEL_LOG_APLICACION:-INFO}
+    ports:
+      - "${SERVICIO_BIBLIOTECA_PUERTO:-8080}:8080"
+    networks:
+      - mariposa-red
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 networks:
   mariposa-red:
