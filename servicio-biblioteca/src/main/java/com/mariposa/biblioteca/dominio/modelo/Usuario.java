@@ -72,6 +72,17 @@ public record Usuario(
         );
     }
 
+    public Usuario cambiarCorreo(CorreoElectronico nuevoCorreo) {
+        Objects.requireNonNull(nuevoCorreo, "nuevoCorreo no puede ser nulo");
+        if (correoElectronico.equals(nuevoCorreo)) {
+            return this;
+        }
+        return new Usuario(
+                id, nombreUsuario, nuevoCorreo, contrasenaEncriptada,
+                rol, estado, fechaCreacion, Instant.now()
+        );
+    }
+
     public boolean estaActivo() {
         return estado == EstadoUsuario.ACTIVO;
     }
