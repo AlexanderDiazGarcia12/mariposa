@@ -31,3 +31,10 @@ info:
   app:
     name: ${spring.application.name}
     descripcion: Microservicio de gestión de catálogo y autenticación de la biblioteca
+
+seguridad:
+  jwt:
+    clave-secreta: ${JWT_CLAVE_SECRETA:una-clave-de-prueba-de-minimo-32-bytes-para-HS256-tests-mariposa}
+    duracion-acceso-minutos: ${JWT_DURACION_ACCESO_MINUTOS:15}
+    duracion-refresco-dias: ${JWT_DURACION_REFRESCO_DIAS:7}
+    emisor: ${JWT_EMISOR:mariposa-biblioteca}

@@ -17,6 +17,17 @@ public interface ProveedorToken {
     record TokenGenerado(String token, Instant expiraEn) {
     }
 
-    record ClaimsToken(UUID idUsuario, String nombreUsuario, Rol rol, Instant expiraEn) {
+    record ClaimsToken(UUID idUsuario, String nombreUsuario, Rol rol, String tipo, Instant expiraEn) {
+
+        public static final String TIPO_ACCESO = "acceso";
+        public static final String TIPO_REFRESCO = "refresco";
+
+        public boolean esAcceso() {
+            return TIPO_ACCESO.equals(tipo);
+        }
+
+        public boolean esRefresco() {
+            return TIPO_REFRESCO.equals(tipo);
+        }
     }
 }
