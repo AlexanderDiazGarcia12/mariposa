@@ -57,6 +57,58 @@ services:
       retries: 3
       start_period: 60s
 
+  postgres-prestamos:
+    image: postgres:16-alpine
+    container_name: mariposa-postgres-prestamos
+    environment:
+      POSTGRES_DB: ${POSTGRES_PRESTAMOS_DB:-prestamos}
+      POSTGRES_USER: ${POSTGRES_PRESTAMOS_USER:-prestamos_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PRESTAMOS_PASSWORD:-cambiar_en_local}
+    ports:
+      - "${POSTGRES_PRESTAMOS_PORT:-5433}:5432"
+    volumes:
+      - postgres_prestamos_datos:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U ${POSTGRES_PRESTAMOS_USER:-prestamos_app} -d ${POSTGRES_PRESTAMOS_DB:-prestamos}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - mariposa-red
+
+  servicio-prestamos:
+    build:
+      context: ./servicio-prestamos
+      dockerfile: Dockerfile
+    container_name: mariposa-servicio-prestamos
+    depends_on:
+      postgres-prestamos:
+        condition: service_healthy
+    environment:
+      SERVICIO_PRESTAMOS_PUERTO: 8081
+      POSTGRES_PRESTAMOS_HOST: postgres-prestamos
+      POSTGRES_PRESTAMOS_PORT: 5432
+      POSTGRES_PRESTAMOS_DB: ${POSTGRES_PRESTAMOS_DB:-prestamos}
+      POSTGRES_PRESTAMOS_USER: ${POSTGRES_PRESTAMOS_USER:-prestamos_app}
+      POSTGRES_PRESTAMOS_PASSWORD: ${POSTGRES_PRESTAMOS_PASSWORD:-cambiar_en_local}
+      SERVICIO_BIBLIOTECA_URL: http://servicio-biblioteca:8080
+      SERVICIO_INTERNO_SECRETO: ${SERVICIO_INTERNO_SECRETO:-secreto-compartido-mariposa-cambiar-en-produccion}
+      HTTP_CLIENTE_TIMEOUT_SEGUNDOS: 5
+    ports:
+      - "${SERVICIO_PRESTAMOS_PUERTO:-8081}:8081"
+    networks:
+      - mariposa-red
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/salud"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   mariposa-red:
     driver: bridge
@@ -64,3 +116,5 @@ networks:
 volumes:
   postgres_datos:
     name: mariposa-postgres-datos
+  postgres_prestamos_datos:
+    name: mariposa-postgres-prestamos-datos
