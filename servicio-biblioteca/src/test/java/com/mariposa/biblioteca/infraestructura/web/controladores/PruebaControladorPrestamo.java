@@ -11,8 +11,10 @@ import com.mariposa.biblioteca.infraestructura.seguridad.ConfiguracionSeguridad;
 import com.mariposa.biblioteca.infraestructura.seguridad.EscritorRespuestaProblema;
 import com.mariposa.biblioteca.infraestructura.seguridad.FiltroAutenticacionInterna;
 import com.mariposa.biblioteca.infraestructura.seguridad.FiltroAutenticacionJwt;
+import com.mariposa.biblioteca.infraestructura.seguridad.FiltroLimiteTasaInicioSesion;
 import com.mariposa.biblioteca.infraestructura.seguridad.ManejadorAccesoDenegadoJwt;
 import com.mariposa.biblioteca.infraestructura.seguridad.PuntoEntradaAutenticacionJwt;
+import com.mariposa.biblioteca.infraestructura.seguridad.RegistroLimitadoresTasa;
 import com.mariposa.biblioteca.infraestructura.web.manejadores.ManejadorGlobalExcepciones;
 import com.mariposa.biblioteca.infraestructura.web.mapeadores.MapeadorWebPrestamo;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +44,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ConfiguracionSeguridad.class,
         FiltroAutenticacionJwt.class,
         FiltroAutenticacionInterna.class,
+        FiltroLimiteTasaInicioSesion.class,
+        RegistroLimitadoresTasa.class,
         PuntoEntradaAutenticacionJwt.class,
         ManejadorAccesoDenegadoJwt.class,
         EscritorRespuestaProblema.class,
@@ -53,7 +57,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "seguridad.jwt.duracion-acceso-minutos=15",
         "seguridad.jwt.duracion-refresco-dias=7",
         "seguridad.jwt.emisor=mariposa-biblioteca",
-        "seguridad.interno.secreto=secreto-de-prueba-minimo-16-caracteres"
+        "seguridad.interno.secreto=secreto-de-prueba-minimo-16-caracteres",
+        "seguridad.limite-tasa.inicio-sesion.habilitado=false",
+        "seguridad.limite-tasa.inicio-sesion.capacidad=1000",
+        "seguridad.limite-tasa.inicio-sesion.ventana-segundos=60"
 })
 class PruebaControladorPrestamo {
 
@@ -141,12 +148,14 @@ class PruebaControladorPrestamo {
     }
 
     private String cuerpoValido() {
+        var hoy = LocalDate.now();
+        var devolucion = hoy.plusDays(14);
         return """
                 {
                   "idLibro": "%s",
-                  "fechaPrestamo": "2026-06-06",
-                  "fechaDevolucionEstimada": "2026-06-20"
+                  "fechaPrestamo": "%s",
+                  "fechaDevolucionEstimada": "%s"
                 }
-                """.formatted(ID_LIBRO);
+                """.formatted(ID_LIBRO, hoy, devolucion);
     }
 }
