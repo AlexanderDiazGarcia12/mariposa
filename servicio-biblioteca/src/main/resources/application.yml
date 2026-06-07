@@ -40,6 +40,11 @@ seguridad:
     emisor: ${JWT_EMISOR:mariposa-biblioteca}
   interno:
     secreto: ${SERVICIO_INTERNO_SECRETO:secreto-interno-pruebas-minimo-16-caracteres}
+  limite-tasa:
+    inicio-sesion:
+      habilitado: ${LIMITE_TASA_INICIO_SESION_HABILITADO:true}
+      capacidad: ${LIMITE_TASA_INICIO_SESION_CAPACIDAD:5}
+      ventana-segundos: ${LIMITE_TASA_INICIO_SESION_VENTANA_SEGUNDOS:60}
 
 servicio:
   prestamos:

@@ -28,7 +28,11 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties({PropiedadesJwt.class, PropiedadesServicioInterno.class})
+@EnableConfigurationProperties({
+        PropiedadesJwt.class,
+        PropiedadesServicioInterno.class,
+        PropiedadesLimiteTasaInicioSesion.class
+})
 public class ConfiguracionSeguridad {
 
     private static final String PATRON_RUTAS_INTERNAS = "/api/v1/internal/**";
@@ -66,6 +70,13 @@ public class ConfiguracionSeguridad {
 
     @Bean
     public FilterRegistrationBean<FiltroAutenticacionInterna> registroFiltroInterno(FiltroAutenticacionInterna filtro) {
+        var registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
+    }
+
+    @Bean
+    public FilterRegistrationBean<FiltroLimiteTasaInicioSesion> registroFiltroLimiteTasa(FiltroLimiteTasaInicioSesion filtro) {
         var registro = new FilterRegistrationBean<>(filtro);
         registro.setEnabled(false);
         return registro;
@@ -112,6 +123,7 @@ public class ConfiguracionSeguridad {
     public SecurityFilterChain cadenaFiltrosSeguridad(
             HttpSecurity http,
             FiltroAutenticacionJwt filtroAutenticacionJwt,
+            FiltroLimiteTasaInicioSesion filtroLimiteTasaInicioSesion,
             PuntoEntradaAutenticacionJwt puntoEntradaAutenticacionJwt,
             ManejadorAccesoDenegadoJwt manejadorAccesoDenegadoJwt,
             CorsConfigurationSource fuenteConfiguracionCors
@@ -128,6 +140,7 @@ public class ConfiguracionSeguridad {
                 .exceptionHandling(excepciones -> excepciones
                         .authenticationEntryPoint(puntoEntradaAutenticacionJwt)
                         .accessDeniedHandler(manejadorAccesoDenegadoJwt))
+                .addFilterBefore(filtroLimiteTasaInicioSesion, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(filtroAutenticacionJwt, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
