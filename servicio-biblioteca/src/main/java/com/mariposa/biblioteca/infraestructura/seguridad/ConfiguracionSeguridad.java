@@ -1,9 +1,15 @@
 package com.mariposa.biblioteca.infraestructura.seguridad;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -15,14 +21,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.net.URI;
 import java.time.Clock;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(PropiedadesJwt.class)
+@EnableConfigurationProperties({PropiedadesJwt.class, PropiedadesServicioInterno.class})
 public class ConfiguracionSeguridad {
+
+    private static final String PATRON_RUTAS_INTERNAS = "/api/v1/internal/**";
+    private static final URI TIPO_PROBLEMA_INTERNO_NO_AUTORIZADO = URI.create("urn:problema:servicio-interno-no-autorizado");
 
     private static final String[] RUTAS_PUBLICAS_GET = {
             "/actuator/health/**",
@@ -48,6 +58,20 @@ public class ConfiguracionSeguridad {
     }
 
     @Bean
+    public FilterRegistrationBean<FiltroAutenticacionJwt> registroFiltroJwt(FiltroAutenticacionJwt filtro) {
+        var registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
+    }
+
+    @Bean
+    public FilterRegistrationBean<FiltroAutenticacionInterna> registroFiltroInterno(FiltroAutenticacionInterna filtro) {
+        var registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
+    }
+
+    @Bean
     public CorsConfigurationSource fuenteConfiguracionCors() {
         var configuracion = new CorsConfiguration();
         configuracion.setAllowedOriginPatterns(List.of("*"));
@@ -61,6 +85,30 @@ public class ConfiguracionSeguridad {
     }
 
     @Bean
+    @Order(1)
+    public SecurityFilterChain cadenaSeguridadInterna(
+            HttpSecurity http,
+            FiltroAutenticacionInterna filtroAutenticacionInterna,
+            EscritorRespuestaProblema escritorRespuestaProblema
+    ) throws Exception {
+        return http
+                .securityMatcher(PATRON_RUTAS_INTERNAS)
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
+                .sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(autorizacion -> autorizacion
+                        .anyRequest().hasRole("SERVICIO_INTERNO"))
+                .exceptionHandling(excepciones -> excepciones
+                        .authenticationEntryPoint((request, response, authException) ->
+                                escribirRespuestaNoAutenticado(response, escritorRespuestaProblema, request.getRequestURI()))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                escribirRespuestaNoAutenticado(response, escritorRespuestaProblema, request.getRequestURI())))
+                .addFilterBefore(filtroAutenticacionInterna, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+
+    @Bean
+    @Order(2)
     public SecurityFilterChain cadenaFiltrosSeguridad(
             HttpSecurity http,
             FiltroAutenticacionJwt filtroAutenticacionJwt,
@@ -82,5 +130,19 @@ public class ConfiguracionSeguridad {
                         .accessDeniedHandler(manejadorAccesoDenegadoJwt))
                 .addFilterBefore(filtroAutenticacionJwt, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    private void escribirRespuestaNoAutenticado(
+            HttpServletResponse response,
+            EscritorRespuestaProblema escritor,
+            String ruta
+    ) throws java.io.IOException {
+        var problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Servicio interno no autorizado");
+        problema.setTitle("Acceso interno denegado");
+        problema.setType(TIPO_PROBLEMA_INTERNO_NO_AUTORIZADO);
+        problema.setInstance(URI.create(ruta));
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        escritor.escribir(response, problema);
     }
 }
