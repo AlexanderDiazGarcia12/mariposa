@@ -38,6 +38,33 @@ seguridad:
     duracion-acceso-minutos: ${JWT_DURACION_ACCESO_MINUTOS:15}
     duracion-refresco-dias: ${JWT_DURACION_REFRESCO_DIAS:7}
     emisor: ${JWT_EMISOR:mariposa-biblioteca}
+  interno:
+    secreto: ${SERVICIO_INTERNO_SECRETO:secreto-interno-pruebas-minimo-16-caracteres}
+
+servicio:
+  prestamos:
+    url-base: ${SERVICIO_PRESTAMOS_URL_BASE:http://servicio-prestamos:8081}
+    timeout-conexion-ms: ${HTTP_CLIENTE_TIMEOUT_CONEXION_MS:2000}
+    timeout-lectura-ms: ${HTTP_CLIENTE_TIMEOUT_LECTURA_MS:5000}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      clientePrestamos:
+        registerHealthIndicator: false
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  retry:
+    instances:
+      clientePrestamos:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
 
 springdoc:
   api-docs:

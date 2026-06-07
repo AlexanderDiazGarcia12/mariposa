@@ -13,6 +13,7 @@ import com.mariposa.biblioteca.dominio.puertos.entrada.comandos.RegistrarUsuario
 import com.mariposa.biblioteca.dominio.puertos.salida.ProveedorToken;
 import com.mariposa.biblioteca.infraestructura.seguridad.ConfiguracionSeguridad;
 import com.mariposa.biblioteca.infraestructura.seguridad.EscritorRespuestaProblema;
+import com.mariposa.biblioteca.infraestructura.seguridad.FiltroAutenticacionInterna;
 import com.mariposa.biblioteca.infraestructura.seguridad.FiltroAutenticacionJwt;
 import com.mariposa.biblioteca.infraestructura.seguridad.ManejadorAccesoDenegadoJwt;
 import com.mariposa.biblioteca.infraestructura.seguridad.PuntoEntradaAutenticacionJwt;
@@ -46,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({
         ConfiguracionSeguridad.class,
         FiltroAutenticacionJwt.class,
+        FiltroAutenticacionInterna.class,
         PuntoEntradaAutenticacionJwt.class,
         ManejadorAccesoDenegadoJwt.class,
         EscritorRespuestaProblema.class,
@@ -56,7 +58,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "seguridad.jwt.clave-secreta=clave-de-prueba-de-minimo-32-bytes-para-HS256-tests-mariposa",
         "seguridad.jwt.duracion-acceso-minutos=15",
         "seguridad.jwt.duracion-refresco-dias=7",
-        "seguridad.jwt.emisor=mariposa-biblioteca"
+        "seguridad.jwt.emisor=mariposa-biblioteca",
+        "seguridad.interno.secreto=secreto-de-prueba-minimo-16-caracteres"
 })
 class PruebaControladorUsuario {
 
