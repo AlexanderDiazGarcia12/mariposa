@@ -4,6 +4,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.mariposa.biblioteca.dominio.excepciones.PrestamoRechazadoPorServicioB;
 import com.mariposa.biblioteca.dominio.excepciones.ServicioPrestamosNoDisponible;
 import com.mariposa.biblioteca.dominio.puertos.entrada.comandos.RegistrarPrestamoComando;
+import com.mariposa.biblioteca.infraestructura.observabilidad.InterceptorIdSolicitudHttp;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -190,11 +191,18 @@ class PruebaClientePrestamosRest {
 
     @org.springframework.boot.autoconfigure.SpringBootApplication
     @ComponentScan(
-            basePackageClasses = ClientePrestamosRest.class,
+            basePackages = {
+                    "com.mariposa.biblioteca.infraestructura.clientes.prestamos",
+                    "com.mariposa.biblioteca.infraestructura.observabilidad"
+            },
             useDefaultFilters = false,
             includeFilters = @ComponentScan.Filter(
                     type = FilterType.ASSIGNABLE_TYPE,
-                    classes = {ClientePrestamosRest.class, ConfiguracionClientePrestamos.class}
+                    classes = {
+                            ClientePrestamosRest.class,
+                            ConfiguracionClientePrestamos.class,
+                            InterceptorIdSolicitudHttp.class
+                    }
             )
     )
     static class ContextoMinimo {

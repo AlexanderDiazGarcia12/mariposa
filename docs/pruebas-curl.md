@@ -50,6 +50,7 @@ export SERVICIO_INTERNO_SECRETO="secreto-compartido-mariposa-cambiar-en-producci
   - [17. Servicio B caído (503 vía circuit breaker)](#17-servicio-b-caído-503-vía-circuit-breaker)
   - [18. Rate limiting en `/iniciar-sesion` (429)](#18-rate-limiting-en-iniciar-sesion-429)
   - [19. Logs JSON estructurados y `X-Request-Id`](#19-logs-json-estructurados-y-x-request-id)
+  - [20. Trace ID propagado A↔B (correlación distribuida)](#20-trace-id-propagado-ab-correlación-distribuida)
 
 ---
 
@@ -802,6 +803,105 @@ docker logs mariposa-servicio-biblioteca 2>&1 \
 > Cuando se integre con Loki / Fluent Bit / CloudWatch, esta estructura no
 > necesita parsing adicional — `idSolicitud`, `level` y `logger_name` quedan
 > indexados automáticamente.
+
+---
+
+## 20. Trace ID propagado A↔B (correlación distribuida)
+
+El header `X-Request-Id` viaja desde el cliente al Servicio A, y de éste al
+Servicio B en la llamada interna del registro de préstamo. Una sola solicitud
+del cliente produce logs en ambos servicios con el mismo trace ID — base de
+observabilidad distribuida.
+
+Necesitas haber ejecutado los pasos 1, 2 y 5 (tener `TOKEN_USUARIO` o `TOKEN`,
+e `ID_LIBRO`). Registra un préstamo con tu propio trace ID:
+
+```bash
+TRACE="trace-e2e-$(date +%s)"
+echo "TRACE = $TRACE"
+
+curl -sS -o /dev/null \
+  -w "HTTP %{http_code} | X-Request-Id devuelto: %header{X-Request-Id}\n" \
+  -X POST "$BASE_A/api/v1/prestamos" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Request-Id: $TRACE" \
+  -H "Content-Type: application/json" \
+  -d "{
+        \"idLibro\":\"$ID_LIBRO\",
+        \"fechaPrestamo\":\"$HOY\",
+        \"fechaDevolucionEstimada\":\"$EN_DOS_SEMANAS\"
+      }"
+```
+
+Salida esperada: `HTTP 201 | X-Request-Id devuelto: trace-e2e-XXXX`.
+
+Buscar el trace en logs del **Servicio A**:
+
+```bash
+docker logs mariposa-servicio-biblioteca 2>&1 | grep "$TRACE" | jq .
+```
+
+Salida ejemplo:
+
+```json
+{
+  "@timestamp": "2026-06-08T03:30:00.123Z",
+  "level": "INFO",
+  "logger_name": "com.mariposa.biblioteca.aplicacion.servicios.ServicioRegistroPrestamo",
+  "message": "Préstamo 932f8d7b-... registrado para usuario ...",
+  "idSolicitud": "trace-e2e-1780889995",
+  "servicio": "servicio-biblioteca",
+  "entorno": "docker"
+}
+```
+
+Buscar **el mismo trace** en logs del **Servicio B**:
+
+```bash
+docker logs mariposa-servicio-prestamos 2>&1 | grep "$TRACE" | jq .
+```
+
+Salida ejemplo:
+
+```json
+{
+  "time": "2026-06-08T03:30:00.456Z",
+  "level": "INFO",
+  "msg": "solicitud HTTP",
+  "method": "POST",
+  "path": "/api/v1/prestamos",
+  "status": 201,
+  "duracion_ms": 23,
+  "request_id": "trace-e2e-1780889995"
+}
+```
+
+> El mismo `trace-e2e-1780889995` aparece en logs JSON de **ambos servicios**,
+> aunque cada uno tenga su propio runtime (Java/Go), su propio logger
+> (Logback/slog) y su propio formato de campos (`idSolicitud` vs `request_id`).
+> Eso es correlación distribuida.
+
+Cuando el cliente NO envía el header, el Servicio A genera un UUID y lo propaga
+de la misma forma:
+
+```bash
+curl -sS -o /dev/null \
+  -w "X-Request-Id generado: %header{X-Request-Id}\n" \
+  -X POST "$BASE_A/api/v1/prestamos" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+        \"idLibro\":\"$ID_LIBRO\",
+        \"fechaPrestamo\":\"$HOY\",
+        \"fechaDevolucionEstimada\":\"$EN_DOS_SEMANAS\"
+      }"
+```
+
+Salida:
+
+```
+X-Request-Id generado: 01b89d3f-4e09-4a50-af3a-1446432ca564
+```
 
 ---
 

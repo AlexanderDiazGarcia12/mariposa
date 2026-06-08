@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/AlexanderDiazGarcia12/mariposa/servicio-prestamos/internal/dominio"
+	"github.com/AlexanderDiazGarcia12/mariposa/servicio-prestamos/internal/observabilidad"
 	"github.com/google/uuid"
 )
 
@@ -102,6 +103,9 @@ func (c *ClienteBibliotecaHTTP) ejecutarSolicitud(ctx context.Context, destino s
 	}
 	req.Header.Set(nombreHeaderInterno, c.secreto)
 	req.Header.Set("Accept", "application/json")
+	if idSolicitud := observabilidad.IDSolicitudDesdeContexto(ctx); idSolicitud != "" {
+		req.Header.Set(observabilidad.HeaderIDSolicitud, idSolicitud)
+	}
 
 	resp, err := c.cliente.Do(req)
 	if err != nil {

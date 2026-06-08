@@ -4,20 +4,14 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/AlexanderDiazGarcia12/mariposa/servicio-prestamos/internal/observabilidad"
 	"github.com/google/uuid"
 )
 
-const HeaderIDSolicitud = "X-Request-Id"
-
-type claveContexto struct{}
-
-var claveIDSolicitud = claveContexto{}
+const HeaderIDSolicitud = observabilidad.HeaderIDSolicitud
 
 func IDSolicitudDesdeContexto(ctx context.Context) string {
-	if v, ok := ctx.Value(claveIDSolicitud).(string); ok {
-		return v
-	}
-	return ""
+	return observabilidad.IDSolicitudDesdeContexto(ctx)
 }
 
 func IDSolicitud(siguiente http.Handler) http.Handler {
@@ -27,7 +21,7 @@ func IDSolicitud(siguiente http.Handler) http.Handler {
 			id = uuid.NewString()
 		}
 		w.Header().Set(HeaderIDSolicitud, id)
-		ctx := context.WithValue(r.Context(), claveIDSolicitud, id)
+		ctx := observabilidad.ContextoConIDSolicitud(r.Context(), id)
 		siguiente.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -138,7 +138,7 @@ Ambos servicios separan el código en tres anillos:
 | Seguridad | JWT HS256 (JJWT 0.12) + BCrypt + dos `SecurityFilterChain` por orden |
 | Resiliencia | Resilience4j 2.4 (CircuitBreaker + Retry) en el cliente HTTP del Servicio A |
 | Rate limiting | Bucket4j 8.19 (token bucket en memoria) en `POST /api/v1/autenticacion/iniciar-sesion` |
-| Observabilidad | Logback con perfil `docker` emitiendo JSON estructurado (logstash-encoder); `X-Request-Id` ↔ MDC `idSolicitud` |
+| Observabilidad | Logs JSON estructurados en ambos servicios + trace ID `X-Request-Id` propagado A↔B para correlación distribuida |
 | Contenedores | Docker multi-stage + Docker Compose v2 |
 | Pruebas | JUnit 5, Mockito, Testcontainers, WireMock (A); `testing`, `testify`, `testcontainers-go` (B) |
 | Documentación API | OpenAPI 3 / Swagger UI vía Springdoc 3.0.3 (Servicio A) |
@@ -429,6 +429,8 @@ Cada filtro `@Component` se desactiva globalmente con `FilterRegistrationBean.se
 Cada evento incluye `@timestamp` UTC, `level`, `logger_name`, `thread_name`, `message`, `stack_trace` (cuando aplica) y las claves MDC `idSolicitud` e `idUsuario`. Campos estáticos: `servicio` y `entorno` (perfil activo).
 
 **Correlación end-to-end** vía `FiltroIdSolicitud` (`@Order(HIGHEST_PRECEDENCE)`): lee el header `X-Request-Id` entrante (o genera UUID), lo coloca en `MDC.idSolicitud`, lo devuelve en la respuesta y lo limpia en `finally`. El cliente puede pasar su propio trace ID y ver todos los logs del request agrupados — pieza base para tracing distribuido cuando se integre con OpenTelemetry / Jaeger.
+
+**Propagación distribuida A↔B.** El `InterceptorIdSolicitudHttp` (Spring `ClientHttpRequestInterceptor`) lee el `MDC.idSolicitud` actual del Servicio A y lo añade como `X-Request-Id` a cada llamada saliente al Servicio B. El Servicio B (Go) tiene su propio middleware (`middleware.IDSolicitud` + `observabilidad.IDSolicitudDesdeContexto`) que recibe el header, lo guarda en el `context.Context` y lo emite como `request_id` en cada log slog. Lo mismo en sentido inverso: el cliente Go del Servicio B → endpoint interno A propaga el id desde el context. Resultado: **una única solicitud del cliente produce logs correlacionables en ambos servicios con el mismo trace ID**.
 
 ```json
 {
