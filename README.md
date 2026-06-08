@@ -138,6 +138,7 @@ Ambos servicios separan el código en tres anillos:
 | Seguridad | JWT HS256 (JJWT 0.12) + BCrypt + dos `SecurityFilterChain` por orden |
 | Resiliencia | Resilience4j 2.4 (CircuitBreaker + Retry) en el cliente HTTP del Servicio A |
 | Rate limiting | Bucket4j 8.19 (token bucket en memoria) en `POST /api/v1/autenticacion/iniciar-sesion` |
+| Observabilidad | Logback con perfil `docker` emitiendo JSON estructurado (logstash-encoder); `X-Request-Id` ↔ MDC `idSolicitud` |
 | Contenedores | Docker multi-stage + Docker Compose v2 |
 | Pruebas | JUnit 5, Mockito, Testcontainers, WireMock (A); `testing`, `testify`, `testcontainers-go` (B) |
 | Documentación API | OpenAPI 3 / Swagger UI vía Springdoc 3.0.3 (Servicio A) |
@@ -417,6 +418,30 @@ El Servicio A expone dos superficies de autenticación:
 - Resto de la API — `@Order(2)`, autenticada por Bearer JWT (HS256).
 
 Cada filtro `@Component` se desactiva globalmente con `FilterRegistrationBean.setEnabled(false)` para evitar doble registro fuera de su cadena.
+
+### Logging JSON estructurado y correlación con `X-Request-Id`
+
+`logback-spring.xml` configura dos appenders con bloques `<springProfile>`:
+
+- **`local | default`** — patrón Spring Boot por defecto, colorizado, legible para desarrollo.
+- **`docker`** — `LogstashEncoder` que emite **JSON una línea por evento**, listo para Loki / Fluent Bit / CloudWatch sin re-parseo.
+
+Cada evento incluye `@timestamp` UTC, `level`, `logger_name`, `thread_name`, `message`, `stack_trace` (cuando aplica) y las claves MDC `idSolicitud` e `idUsuario`. Campos estáticos: `servicio` y `entorno` (perfil activo).
+
+**Correlación end-to-end** vía `FiltroIdSolicitud` (`@Order(HIGHEST_PRECEDENCE)`): lee el header `X-Request-Id` entrante (o genera UUID), lo coloca en `MDC.idSolicitud`, lo devuelve en la respuesta y lo limpia en `finally`. El cliente puede pasar su propio trace ID y ver todos los logs del request agrupados — pieza base para tracing distribuido cuando se integre con OpenTelemetry / Jaeger.
+
+```json
+{
+  "@timestamp": "2026-06-07T23:34:55.890Z",
+  "level": "WARN",
+  "logger_name": "com.mariposa.biblioteca.infraestructura.seguridad.FiltroLimiteTasaInicioSesion",
+  "thread_name": "http-nio-8080-exec-4",
+  "message": "Límite de intentos de inicio de sesión excedido para clave=203.0.113.10 reintentarEn=59s",
+  "idSolicitud": "smoke-rate-6",
+  "servicio": "servicio-biblioteca",
+  "entorno": "docker"
+}
+```
 
 ### Rate limiting en `POST /api/v1/autenticacion/iniciar-sesion`
 

@@ -49,6 +49,7 @@ export SERVICIO_INTERNO_SECRETO="secreto-compartido-mariposa-cambiar-en-producci
   - [16. Préstamo con fechas inválidas (400)](#16-préstamo-con-fechas-inválidas-400)
   - [17. Servicio B caído (503 vía circuit breaker)](#17-servicio-b-caído-503-vía-circuit-breaker)
   - [18. Rate limiting en `/iniciar-sesion` (429)](#18-rate-limiting-en-iniciar-sesion-429)
+  - [19. Logs JSON estructurados y `X-Request-Id`](#19-logs-json-estructurados-y-x-request-id)
 
 ---
 
@@ -725,6 +726,82 @@ su bucket fresco aunque la IP original esté bloqueada).
 > Importante: el rate limit aplica **sólo** a `POST /api/v1/autenticacion/iniciar-sesion`.
 > El resto de endpoints (incluido `/refrescar`, `/actuator/health`, `/api/v1/libros`,
 > etc.) no está afectado.
+
+---
+
+## 19. Logs JSON estructurados y `X-Request-Id`
+
+En perfil `docker` (el que activa `docker-compose.yml`), el Servicio A emite logs
+JSON una línea por evento. Cada request gana automáticamente un `idSolicitud`
+en MDC, devuelto al cliente como header `X-Request-Id`. Si el cliente envía su
+propio `X-Request-Id`, el filtro lo preserva (truncado a 128 caracteres).
+
+Hacer un request enviando un trace ID propio y verificar que regresa:
+
+```bash
+curl -sS -o /dev/null \
+  -w "X-Request-Id devuelto: %header{X-Request-Id}\n" \
+  -H "X-Request-Id: mi-trace-12345" \
+  -X POST "$BASE_A/api/v1/autenticacion/iniciar-sesion" \
+  -H "Content-Type: application/json" \
+  -d '{"nombreUsuario":"admin","contrasena":"x"}'
+```
+
+Salida:
+
+```
+X-Request-Id devuelto: mi-trace-12345
+```
+
+Sin enviar el header, el servidor genera un UUID:
+
+```bash
+curl -sS -o /dev/null \
+  -w "X-Request-Id generado: %header{X-Request-Id}\n" \
+  "$BASE_A/actuator/health"
+```
+
+Salida ejemplo:
+
+```
+X-Request-Id generado: 01b89d3f-4e09-4a50-af3a-1446432ca564
+```
+
+Inspeccionar los logs del contenedor — son JSON puro, parseable directamente:
+
+```bash
+docker logs mariposa-servicio-biblioteca 2>&1 \
+  | grep "mi-trace-12345" \
+  | jq .
+```
+
+Ejemplo de evento (un fallo de contraseña):
+
+```json
+{
+  "@timestamp": "2026-06-07T23:34:55.890Z",
+  "@version": "1",
+  "message": "Autenticación rechazada: contraseña no coincide",
+  "logger_name": "com.mariposa.biblioteca.aplicacion.servicios.ServicioAutenticacion",
+  "thread_name": "http-nio-8080-exec-4",
+  "level": "DEBUG",
+  "level_value": 10000,
+  "idSolicitud": "mi-trace-12345",
+  "servicio": "servicio-biblioteca",
+  "entorno": "docker"
+}
+```
+
+Filtrar todos los eventos de una solicitud específica (correlación):
+
+```bash
+docker logs mariposa-servicio-biblioteca 2>&1 \
+  | jq -c 'select(.idSolicitud == "mi-trace-12345")'
+```
+
+> Cuando se integre con Loki / Fluent Bit / CloudWatch, esta estructura no
+> necesita parsing adicional — `idSolicitud`, `level` y `logger_name` quedan
+> indexados automáticamente.
 
 ---
 
