@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/AlexanderDiazGarcia12/mariposa/servicio-prestamos/internal/dominio"
+	"github.com/AlexanderDiazGarcia12/mariposa/servicio-prestamos/internal/observabilidad"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -128,4 +129,40 @@ func TestValidarLibroDisponible_403TratadoComoNoDisponible(t *testing.T) {
 	err := cli.ValidarLibroDisponible(context.Background(), uuid.New())
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, dominio.ErrServicioBibliotecaNoDisponible))
+}
+
+func TestValidarLibroDisponible_PropagaXRequestIdDesdeContexto(t *testing.T) {
+	idLibro := uuid.New()
+	idEsperado := "trace-distribuido-77"
+	var idRecibido string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		idRecibido = r.Header.Get(observabilidad.HeaderIDSolicitud)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"id":%q,"titulo":"T","copiasTotales":1,"copiasDisponibles":1}`, idLibro)
+	}))
+	defer srv.Close()
+
+	cli := NuevoClienteHTTP(srv.URL, secretoPrueba, 2*time.Second).SinReintentos()
+	ctx := observabilidad.ContextoConIDSolicitud(context.Background(), idEsperado)
+
+	err := cli.ValidarLibroDisponible(ctx, idLibro)
+	require.NoError(t, err)
+	assert.Equal(t, idEsperado, idRecibido, "el cliente debe propagar X-Request-Id desde el contexto")
+}
+
+func TestValidarLibroDisponible_NoEnviaXRequestIdSinContexto(t *testing.T) {
+	idLibro := uuid.New()
+	var idRecibido string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		idRecibido = r.Header.Get(observabilidad.HeaderIDSolicitud)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"id":%q,"titulo":"T","copiasTotales":1,"copiasDisponibles":1}`, idLibro)
+	}))
+	defer srv.Close()
+
+	cli := NuevoClienteHTTP(srv.URL, secretoPrueba, 2*time.Second).SinReintentos()
+
+	err := cli.ValidarLibroDisponible(context.Background(), idLibro)
+	require.NoError(t, err)
+	assert.Empty(t, idRecibido, "sin id en contexto el cliente no debe enviar X-Request-Id")
 }
